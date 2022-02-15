@@ -1,18 +1,24 @@
 const button = document.querySelector('#button');
-const audio = document.querySelector('#audio');
+const audioElement = document.querySelector('#audio');
+
+// disable button
+
+function toggleButton() {
+  button.disabled = !button.disabled;
+}
 
 // VoiceRSS Javascript SDK
 const VoiceRSS = {
-  speech: function (e) {
+  speech(e) {
     this._validate(e), this._request(e);
   },
-  _validate: function (e) {
+  _validate(e) {
     if (!e) throw "The settings are undefined";
     if (!e.key) throw "The API key is undefined";
     if (!e.src) throw "The text is undefined";
     if (!e.hl) throw "The language is undefined";
     if (e.c && "auto" != e.c.toLowerCase()) {
-      var a = !1;
+      let a = !1;
       switch (e.c.toLowerCase()) {
         case "mp3":
           a = new Audio().canPlayType("audio/mpeg").replace("no", "");
@@ -29,16 +35,20 @@ const VoiceRSS = {
         case "caf":
           a = new Audio().canPlayType("audio/x-caf").replace("no", "");
       }
-      if (!a) throw "The browser does not support the audio codec " + e.c;
+      if (!a) throw `The browser does not support the audio codec ${e.c}`;
     }
   },
-  _request: function (e) {
-    var a = this._buildRequest(e),
+  _request(e) {
+    const a = this._buildRequest(e),
       t = this._getXHR();
     (t.onreadystatechange = function () {
       if (4 == t.readyState && 200 == t.status) {
         if (0 == t.responseText.indexOf("ERROR")) throw t.responseText;
-        (audioElement.src = t.responseText), audioElement.play();
+        let e = t.responseText;
+        (audioElement.src = e),
+          (audioElement.onloadedmetadata = () => {
+            audioElement.play();
+          });
       }
     }),
       t.open("POST", "https://api.voicerss.org/", !0),
@@ -48,28 +58,14 @@ const VoiceRSS = {
       ),
       t.send(a);
   },
-  _buildRequest: function (e) {
-    var a = e.c && "auto" != e.c.toLowerCase() ? e.c : this._detectCodec();
-    return (
-      "key=" +
-      (e.key || "") +
-      "&src=" +
-      (e.src || "") +
-      "&hl=" +
-      (e.hl || "") +
-      "&r=" +
-      (e.r || "") +
-      "&c=" +
-      (a || "") +
-      "&f=" +
-      (e.f || "") +
-      "&ssml=" +
-      (e.ssml || "") +
-      "&b64=true"
-    );
+  _buildRequest(e) {
+    const a = e.c && "auto" != e.c.toLowerCase() ? e.c : this._detectCodec();
+    return `key=${e.key || ""}&src=${e.src || ""}&hl=${e.hl || ""}&r=${
+      e.r || ""
+    }&c=${a || ""}&f=${e.f || ""}&ssml=${e.ssml || ""}&b64=true`;
   },
-  _detectCodec: function () {
-    var e = new Audio();
+  _detectCodec() {
+    const e = new Audio();
     return e.canPlayType("audio/mpeg").replace("no", "")
       ? "mp3"
       : e.canPlayType("audio/wav").replace("no", "")
@@ -82,7 +78,7 @@ const VoiceRSS = {
       ? "caf"
       : "";
   },
-  _getXHR: function () {
+  _getXHR() {
     try {
       return new XMLHttpRequest();
     } catch (e) {}
@@ -105,11 +101,11 @@ const VoiceRSS = {
   },
 };
 
+
 // passing jokes to text speech API
 
 function tellMe(joke) {
-
-  // VoiceRSS Speech Parameters
+  const jokeString = joke.trim().replace(/ /g, "%20");
   VoiceRSS.speech({
     key: "e985f868e96c46d9b0789c3855350152",
     src: jokeString,
@@ -125,22 +121,29 @@ function tellMe(joke) {
 // get jokes from API.
 
 async function getJokes() {
-  const joke = '';
-  const apiUrl = "https://sv443.net/jokeapi/v2/joke/Programming?blacklistFlags=nsfw,racist,sexist";
+  let joke = "";
+  const apiUrl =
+    "https://sv443.net/jokeapi/v2/joke/Programming?blacklistFlags=nsfw,racist,sexist";
   try {
     const response = await fetch(apiUrl);
     const data = await response.json();
+    // Assign One or Two Part Joke
     if (data.setup) {
-      joke = `${data.setup} ... ${data.delivery}`
+      joke = `${data.setup} ... ${data.delivery}`;
     } else {
       joke = data.joke;
     }
-    tellMe(joke)
+    // Passing Joke to VoiceRSS API
+    tellMe(joke);
+    // Disable Button
+    toggleButton();
   } catch (error) {
-    
+    // Catch Error Here
   }
 }
 
 // event listeners
 
-button.addEventListener('click',getJokes)
+button.addEventListener('click', getJokes)
+
+audioElement.addEventListener('ended',toggleButton)
